@@ -10,7 +10,6 @@ import os
 
 from docanalyzer.config import settings
 
-DEFAULT_MODEL = "claude-sonnet-5"
 _TOOL_NAME = "record_analysis"
 
 
@@ -18,7 +17,7 @@ class AnthropicBackend:
     name = "anthropic"
 
     def __init__(self, model: str | None = None) -> None:
-        self.model = model or DEFAULT_MODEL
+        self.model = model or settings.model
         self._client = None
 
     def _get_client(self):

@@ -16,11 +16,17 @@ Sopra ci sono due modi di usarla, che condividono la stessa pipeline.
 ## Setup
 
 ```bash
+cp .env.example .env         # obbligatorio: nessun valore ha un default nel codice
 uv sync                      # base: PDF nativi, Office, testo
 uv sync --extra ocr          # OCR per le scansioni (~1 GB di modelli)
 uv sync --extra api          # servizio HTTP (FastAPI + uvicorn)
 uv run docanalyzer doctor    # backend LLM raggiungibile? modello presente?
 ```
+
+`.env.example` è versionato e contiene tutti i valori: copiandolo così com'è si
+ottiene la configurazione locale con Ollama. Senza `.env` il programma non parte
+e dice quali variabili mancano — meglio di un default silenzioso che fa girare
+il sistema con una configurazione che nessuno ha scelto.
 
 ## Uso da riga di comando
 
@@ -32,9 +38,9 @@ uv run docanalyzer extract fattura.pdf
 uv run docanalyzer analyze fattura.pdf --profile invoice
 uv run docanalyzer analyze doc.pdf -o risultato.json
 
-# Cambiare backend/modello al volo
+# Cambiare backend/modello al volo (scavalcano il .env per quella sola esecuzione)
 uv run docanalyzer analyze doc.pdf --model llama3.2:3b
-uv run docanalyzer analyze doc.pdf --backend anthropic
+uv run docanalyzer analyze doc.pdf --backend anthropic --model claude-sonnet-5
 
 uv run docanalyzer profiles
 ```
@@ -42,13 +48,21 @@ uv run docanalyzer profiles
 Il repository non include documenti di esempio: sono dati personali. Per
 provarlo servono PDF tuoi, oppure si generano scansioni sintetiche (vedi sotto).
 
-Configurazione persistente via `.env` (prefisso `DOCANALYZER_`):
+La configurazione sta tutta nel `.env` (prefisso `DOCANALYZER_`), non nel
+codice: `config.py` dichiara i campi, i valori li mette il file.
 
 ```
-DOCANALYZER_BACKEND=ollama
-DOCANALYZER_MODEL=gemma4:e4b
+DOCANALYZER_BACKEND=ollama          # ollama | anthropic | openai
+DOCANALYZER_MODEL=gemma4:e4b        # vale per il backend scelto, qualunque sia
 DOCANALYZER_MAX_INPUT_CHARS=60000
 ```
+
+`DOCANALYZER_MODEL` è unico per tutti i backend: cambiando `BACKEND` va cambiato
+anche il modello, o passato `--model` sulla singola esecuzione. I provider cloud
+vogliono in più la propria chiave nell'ambiente — `ANTHROPIC_API_KEY` o
+`OPENAI_API_KEY`, senza prefisso — e il rispettivo extra (`uv sync --extra
+anthropic`). Con `OPENAI_BASE_URL` il backend `openai` parla anche a un server
+locale (vLLM, LM Studio, llama.cpp).
 
 ## Servizio HTTP
 
@@ -224,7 +238,8 @@ due servizi da far girare e sorvegliare, con persistenza al riavvio inclusa.
 L'interfaccia — prendi un job, aggiornane lo stato — è già quella di una coda
 vera, quindi la sostituzione resta meccanica se un giorno servono più macchine.
 
-Configurazione (stesso prefisso `DOCANALYZER_`):
+Configurazione (stesso prefisso `DOCANALYZER_`, stesso `.env`; l'elenco
+completo con le spiegazioni è in `.env.example`):
 
 ```
 DOCANALYZER_DATA_DIR=./data            # database dei job + file caricati
@@ -380,6 +395,7 @@ uv run pytest
 ```
 
 I test usano un backend finto: verificano la pipeline, non la qualità del
-modello. `test_api.py` copre la coda (prelievo atomico, recupero dei job orfani,
+modello. Girano anche senza `.env` — `conftest.py` popola le variabili prima
+dell'import, così la suite non dipende da un file non versionato. `test_api.py` copre la coda (prelievo atomico, recupero dei job orfani,
 retention) e il comportamento del worker davanti a un figlio che risponde, che
 alza un'eccezione classificata o che muore di segfault.

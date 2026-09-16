@@ -13,14 +13,12 @@ import os
 
 from docanalyzer.config import settings
 
-DEFAULT_MODEL = "gpt-4o-mini"
-
 
 class OpenAIBackend:
     name = "openai"
 
     def __init__(self, model: str | None = None) -> None:
-        self.model = model or DEFAULT_MODEL
+        self.model = model or settings.model
         self._client = None
 
     def _get_client(self):
