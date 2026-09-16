@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from docanalyzer.config import settings
+from docanalyzer.errors import UnknownBackend
 from docanalyzer.llm.base import LLMBackend
 
 
@@ -22,7 +23,7 @@ def get_backend(name: str | None = None, model: str | None = None) -> LLMBackend
 
         return OpenAIBackend(model=model)
 
-    raise ValueError(
+    raise UnknownBackend(
         f"Backend sconosciuto: {backend_name!r}. Disponibili: {available_backends()}"
     )
 

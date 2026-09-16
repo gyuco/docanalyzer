@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from docanalyzer.errors import UnknownParser, UnsupportedFormat
 from docanalyzer.models import ParsedDocument
 
 # Sotto questa soglia di caratteri per pagina consideriamo il PDF una scansione.
@@ -33,11 +34,14 @@ def get_parser(path: Path, preferred: str | None = None) -> Parser:
         for parser in _REGISTRY:
             if parser.name == preferred:
                 return parser
-        raise ValueError(f"Parser sconosciuto: {preferred!r}")
+        raise UnknownParser(
+            f"Parser sconosciuto: {preferred!r}. "
+            f"Disponibili: {available_parsers()}"
+        )
     for parser in _REGISTRY:
         if parser.supports(path):
             return parser
-    raise ValueError(f"Nessun parser disponibile per {path.name}")
+    raise UnsupportedFormat(f"Nessun parser disponibile per {path.name}")
 
 
 def available_parsers() -> list[str]:

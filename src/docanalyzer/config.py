@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +27,29 @@ class Settings(BaseSettings):
     max_input_chars: int = 60_000
 
     request_timeout: int = 600
+
+    # ----------------------------------------------------------------- #
+    # Servizio (usati solo da docanalyzer.api)
+    # ----------------------------------------------------------------- #
+
+    # Database dei job e file caricati. Un solo posto da montare come volume
+    # e da mettere nei backup.
+    data_dir: Path = Path("./data")
+    # Un PDF oltre questa soglia o è un errore o è un batch travestito.
+    max_upload_mb: int = 50
+    # Dopo quante ore job e file caricati vengono cancellati. Sono fatture ed
+    # estratti conto: la retention è una decisione esplicita, non l'inerzia di
+    # una directory che non si svuota mai.
+    job_retention_hours: int = 24
+    # Chiave condivisa richiesta nell'header X-API-Key. Vuota = nessun
+    # controllo: accettabile solo in locale.
+    api_key: str = ""
+    # Intervallo di polling della coda quando è vuota.
+    worker_poll_seconds: float = 1.0
+    # Tentativi per job prima di dichiararlo definitivamente fallito. Serve
+    # contro il documento-veleno: quello che fa morire il processo di
+    # estrazione verrebbe altrimenti ripreso all'infinito.
+    max_attempts: int = 2
 
 
 settings = Settings()

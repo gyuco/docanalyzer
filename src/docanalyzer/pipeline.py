@@ -9,6 +9,12 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from docanalyzer.config import settings
+from docanalyzer.errors import (
+    DocumentNotFound,
+    ModelOutputInvalid,
+    OCRUnavailable,
+    UnreadableDocument,
+)
 from docanalyzer.llm import LLMBackend, get_backend
 from docanalyzer.models import AnalysisResult, ParsedDocument
 from docanalyzer.parsing import get_parser
@@ -108,11 +114,11 @@ def parse_document(path: Path, parser_name: str | None = None) -> ParsedDocument
         return document
 
     if parser_name:
-        raise RuntimeError(
+        raise UnreadableDocument(
             f"{path.name}: il parser {parser_name!r} non ha estratto testo utile."
         )
     if not _ocr_available():
-        raise RuntimeError(
+        raise OCRUnavailable(
             f"{path.name}: nessun testo estraibile, è probabilmente una scansione. "
             "Serve l'OCR: installa l'extra con `uv sync --extra ocr` e riprova."
         )
@@ -124,7 +130,7 @@ def parse_document(path: Path, parser_name: str | None = None) -> ParsedDocument
         # Meglio un errore che un'analisi dall'aria plausibile costruita su
         # frammenti: il modello riempirebbe lo schema comunque, e a valle nulla
         # distinguerebbe il risultato da un'estrazione riuscita.
-        raise RuntimeError(
+        raise UnreadableDocument(
             f"{path.name}: l'OCR ha prodotto testo troppo frammentario "
             f"({density} caratteri utili per pagina, soglia "
             f"{OCR_MIN_USEFUL_CHARS_PER_PAGE}). La scansione è probabilmente "
@@ -142,7 +148,7 @@ def analyze_file(
 ) -> AnalysisResult:
     schema_model = get_profile(profile)
     if not path.is_file():
-        raise FileNotFoundError(path)
+        raise DocumentNotFound(str(path))
 
     llm = backend or get_backend()
 
@@ -163,7 +169,7 @@ def analyze_file(
         # L'output è vincolato allo schema, quindi qui finiscono solo gli errori
         # semantici (date impossibili, enum fuori dominio). Meglio farli emergere
         # con il payload grezzo che tentare riparazioni automatiche silenziose.
-        raise RuntimeError(
+        raise ModelOutputInvalid(
             f"Output del modello non validabile: {exc}\nPayload: {raw}"
         ) from exc
 

@@ -19,9 +19,12 @@ ocr = ["docling>=2.15"]
 # Backend cloud, opzionali.
 anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.60"]
+# Servizio HTTP: API a job + worker. La libreria e la CLI non ne dipendono.
+api = ["fastapi>=0.115", "uvicorn[standard]>=0.34", "python-multipart>=0.0.20"]
 
 [project.scripts]
 docanalyzer = "docanalyzer.cli:app"
+docanalyzer-worker = "docanalyzer.api.worker:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -36,4 +39,5 @@ pythonpath = ["src"]
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "httpx>=0.28",
 ]

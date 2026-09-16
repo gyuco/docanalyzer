@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from docanalyzer.errors import UnknownProfile
+
 _REGISTRY: dict[str, type[BaseModel]] = {}
 
 
@@ -23,7 +25,7 @@ def get_profile(name: str) -> type[BaseModel]:
     try:
         return _REGISTRY[name]
     except KeyError:
-        raise ValueError(
+        raise UnknownProfile(
             f"Profilo sconosciuto: {name!r}. Disponibili: {available_profiles()}"
         ) from None
 
