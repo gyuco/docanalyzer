@@ -57,9 +57,13 @@ che proxy e client HTTP tagliano prima. L'API non chiama mai la pipeline —
 salva il file, scrive una riga in coda e risponde in millisecondi. Il lavoro lo
 fa il worker, che è un altro processo.
 
-Due programmi da avviare, sullo stesso `DATA_DIR`:
+Due programmi da avviare, in due terminali, che devono vedere lo **stesso**
+`DATA_DIR` — è lì che stanno la coda e i file caricati, ed è l'unica cosa che
+condividono:
 
 ```bash
+export DOCANALYZER_DATA_DIR=./data
+
 uv run uvicorn docanalyzer.api.app:app --port 8000   # API
 uv run docanalyzer-worker                            # worker
 ```
@@ -141,6 +145,18 @@ curl -s localhost:8000/jobs/$ID | jq '.result.data'
 # { "document_type": "fattura", "total": {...}, "open_questions": [...] }
 ```
 
+Per non copiare l'id a mano, in un comando solo:
+
+```bash
+ID=$(curl -s -X POST localhost:8000/jobs \
+       -F file=@fattura.pdf -F profile=invoice | jq -r .id)
+
+until curl -s localhost:8000/jobs/$ID | jq -e '.status | IN("done","failed")' >/dev/null; do
+  sleep 2
+done
+curl -s localhost:8000/jobs/$ID | jq '{status, error, data: .result.data}'
+```
+
 Un fallimento ha la stessa forma, con l'errore al posto del risultato:
 
 ```bash
@@ -174,6 +190,19 @@ Lo stato `failed` porta sempre un `code` stabile (`unreadable_document`,
 `ocr_unavailable`, `model_output_invalid`, `extraction_crashed`, `timeout`): è
 quello su cui ramificare, il messaggio è per l'umano. `/docs` serve lo schema
 OpenAPI completo.
+
+### Quando qualcosa sembra fermo
+
+```bash
+curl -s localhost:8000/jobs | jq '.[] | {id, filename, status}'   # tutta la coda
+curl -s localhost:8000/health | jq .queue                         # conteggi per stato
+```
+
+Un job che resta a lungo in `pending` con `running` a zero non è un'analisi
+lenta: è il worker che non sta girando o che non vede lo stesso `DATA_DIR`
+dell'API. `/health` risponde `503` anche quando il processo è vivo ma il backend
+LLM non risponde — un healthcheck che dicesse solo "sono su" lascerebbe il
+servizio in rotazione mentre ogni job fallisce.
 
 **Due isolamenti, per due guai diversi.** L'API è separata dal worker, quindi
 resta reattiva mentre gira un'analisi da tre minuti e si può riavviare senza
